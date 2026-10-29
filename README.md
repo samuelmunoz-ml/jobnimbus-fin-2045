@@ -1,27 +1,33 @@
 # JobNimbus - First payment link after approval (FIN-2045)
 
-The product screen an admin sees once their JobNimbus payments account (Stripe
-Connect) is approved. It lists open invoices that went out before Pay now existed
-and lets the admin send a payment link on each one. The goal is the first payment,
-not the approval.
+The screen an admin sees once their JobNimbus payments account (Stripe Connect) is
+approved. It lists open invoices that went out before Pay now existed and lets the
+admin send a payment link on each one. The goal is the first payment, not the
+approval.
 
-This is the **product screen only**, extracted from an interactive review concept.
+## Pages
 
-## Run
+- **`index.html`** - the interactive **review concept**. It adds a "Concept controls"
+  bar (not part of the product) so reviewers can switch account status, eligibility,
+  scope, ACH and EIN, simulate payment states, and toggle an engineer-notes overlay.
+  Use this one for feedback.
+- **`product.html`** - the **product screen only**, with the concept scaffolding
+  removed and account state set by config constants (see below).
 
-Open `index.html` directly in a browser, or serve the folder:
+Both are single self-contained HTML files, no build step (fonts load from Google Fonts).
+
+## Run locally
 
 ```bash
 python3 -m http.server 8000
 ```
 
-then visit http://localhost:8000. It is a single self-contained HTML file with no
-build step or dependencies (fonts load from Google Fonts).
+then visit http://localhost:8000 (concept) or http://localhost:8000/product.html.
 
-## Configuration
+## Product configuration (`product.html`)
 
-Account state is set with constants at the top of the `<script>` in `index.html`.
-They stand in for values that come from the backend account and feature flags:
+Account state is set with constants at the top of the `<script>`, standing in for
+backend account values and feature flags:
 
 | Constant | Values |
 | --- | --- |
@@ -34,8 +40,8 @@ They stand in for values that come from the backend account and feature flags:
 ## Notes for engineering
 
 - Gating in production: admin only (`access.settings`), behind the `stripe-payments` flag.
-- Eligibility is one function (`eligibleInvoices()`): balance > 0, sent before the
-  approval date, finalized (not void or draft), no existing payment link, in scope.
+- Eligibility is one function: balance > 0, sent before the approval date, finalized
+  (not void or draft), no existing payment link, in scope.
 - The send flow reuses the existing Send payment request flow, prefilled.
 - Every payment carries `job_id` and `location_id` metadata.
 - `paid`, `processing` and `failed` row states come from Stripe payment events (webhooks).
