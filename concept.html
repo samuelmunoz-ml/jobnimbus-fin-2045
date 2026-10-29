@@ -105,7 +105,10 @@
   p { margin: 0; }
   button { font-family: inherit; }
   a { color: var(--fg-brand); }
-  .mono, .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  /* JobNimbus renders numbers in Figtree (not a monospace); tabular figures keep columns aligned. */
+  .mono, .num { font-variant-numeric: tabular-nums; }
+  ::selection { background: #d9e1f2; color: #1f2c47; }
+  ::-moz-selection { background: #d9e1f2; color: #1f2c47; }
   .sr-only {
     position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
     overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
@@ -399,7 +402,7 @@
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap">
 
 <!-- ============ CONCEPT CONTROLS (outside the product UI) ============ -->
 <div class="concept-bar">
@@ -481,7 +484,7 @@
       <div class="entry-body">
         <span class="badge badge-success" style="align-self:flex-start"><span class="d"></span>Approved</span>
         <h3>You're approved to take payments</h3>
-        <p>Your payments account is approved. You can now add a Pay now link to invoices so customers pay by card<span id="entryAch"> or bank account (ACH)</span>. Your open invoices are ready to go.</p>
+        <p>Your payments account is approved. You can now add a Pay now link to invoices so customers pay by card<span id="entryAch"> or bank account (ACH)</span>. Review your open invoices below.</p>
         <button class="btn btn-primary" id="entryCta">Review open invoices</button>
       </div>
     </div>
@@ -652,7 +655,7 @@ function renderBanner() {
       + '<div class="banner-body">'
       + '  <span class="badge badge-warning"><span class="d"></span>' + CURRENT_LOCATION + ' · Card payments on</span>'
       + '  <h1>You can take card payments</h1>'
-      + '  <p>Add a Pay now link to any invoice and customers can pay by card today. Payouts are on hold until Stripe verifies the bank account ending 4821.</p>'
+      + '  <p>Add a Pay now link to any invoice so customers can pay by card. Payouts are paused until Stripe verifies the bank account ending 4821.</p>'
       + '  <span class="payout-chip">' + '<span class="bank-ico">' + BANK + '</span>'
       + '    Payouts pending for bank account <span class="num">ending 4821</span></span>'
       + '</div></section>';
@@ -666,7 +669,7 @@ function renderBanner() {
     + '<div class="banner-body">'
     + '  <span class="badge badge-success"><span class="d"></span>' + CURRENT_LOCATION + ' · Approved</span>'
     + '  <h1>You can take payments now</h1>'
-    + '  <p>Every invoice you send now has a Pay now button, and so can the open ones below. Payouts go to the bank account ending 4821.</p>'
+    + '  <p>New invoices you send include a Pay now button. Add one to the open invoices below. Payouts go to the bank account ending 4821.</p>'
     + '  <span class="payout-chip">' + '<span class="bank-ico">' + BANK + '</span>'
     + '    Payouts go to the bank account <span class="num">ending 4821</span></span>'
     + '</div></section>';
@@ -692,7 +695,7 @@ function renderStep() {
       + '<span class="eico" aria-hidden="true">' + DOC + '</span>'
       + '<h2>No open invoices need a payment link</h2>'
       + '<p>Every open invoice at ' + (state.scope === "account" ? "your account" : CURRENT_LOCATION)
-      + ' already has a Pay now link, or there are none yet. You can still take a payment.</p>'
+      + ' already has a payment link, or there are none right now. You can still take a payment.</p>'
       + '<div class="empty-actions">'
       + '  <button class="btn btn-primary" data-send-request>Send a payment request</button>'
       + '  <button class="btn btn-secondary" data-create-invoice>Create an invoice</button>'
@@ -710,7 +713,7 @@ function renderStep() {
       + '<span class="pico" aria-hidden="true">' + CHECK + '</span>'
       + '<div><span class="eyebrow done">' + CHECK.replace("<svg", '<svg class="ex"') + ' Step 3 of 3 complete</span>'
       + '<h2>First payment received: ' + money(paid.balance) + ' from ' + paid.cust + '</h2>'
-      + '<p>Nice. That starts your payments activation. Invoices still waiting keep their Send payment link option below.</p>'
+      + '<p>You have your first payment. The invoices below still have the Send payment link option.</p>'
       + '</div></div>';
   } else {
     var sentCount = eligible.filter(function (i) {
@@ -718,8 +721,8 @@ function renderStep() {
     }).length;
     var total = eligible.length;
     var scopeLine = state.scope === "account"
-      ? "These open invoices across your account were sent before Pay now existed."
-      : "These open invoices at " + CURRENT_LOCATION + " were sent before Pay now existed.";
+      ? "These open invoices across your account went out before Pay now."
+      : "These open invoices at " + CURRENT_LOCATION + " went out before Pay now.";
     head =
       '<div class="step-head">'
       + '<span class="eyebrow">Step 3 of 3</span>'
@@ -756,7 +759,7 @@ function renderStep() {
   // Exit conditions are documented for engineering (see note 7). "Not now" dismisses.
   var foot =
     '<div class="step-foot">'
-    + '<span class="foot-note">This step clears once you send all links, take the first payment, or 14 days after approval.<span class="annot" data-n="7">7</span></span>'
+    + '<span class="foot-note">This step goes away after you send the links, take the first payment, or 14 days after approval.<span class="annot" data-n="7">7</span></span>'
     + '<button class="btn btn-secondary btn-sm" data-dismiss>Not now</button>'
     + '</div>';
 
@@ -855,7 +858,7 @@ function openSendModal(id) {
     '<div class="concept-note">' + INFO + '<span>Concept: this reuses the existing Send payment request flow, prefilled with the invoice, customer, recipient and balance.<span class="annot" data-n="2">2</span></span></div>'
     + '<div class="modal-featured">' + MAIL + '</div>'
     + '<h3>' + title + '</h3>'
-    + '<p class="modal-sub">We\'ll ' + (inv.channel === "email" ? "email" : "text") + ' a secure Pay now link for this invoice. Nothing else about the invoice changes.</p>'
+    + '<p class="modal-sub">We\'ll ' + (inv.channel === "email" ? "email" : "text") + ' a Pay now link for this invoice. Nothing else about the invoice changes.</p>'
     + '<div class="summary-box">'
     + '  <div class="summary-row"><span class="k">Customer</span><span class="v">' + inv.cust + '</span></div>'
     + '  <div class="summary-row"><span class="k">Invoice</span><span class="v mono">#' + inv.id + '</span></div>'
