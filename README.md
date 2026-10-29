@@ -7,14 +7,16 @@ approval.
 
 ## Pages
 
-- **`index.html`** - the interactive **review concept**. It adds a "Concept controls"
-  bar (not part of the product) so reviewers can switch account status, eligibility,
-  scope, ACH and EIN, simulate payment states, and toggle an engineer-notes overlay.
-  Use this one for feedback.
-- **`product.html`** - the **product screen only**, with the concept scaffolding
-  removed and account state set by config constants (see below).
+- **`index.html`** - a **scenario picker**. Choose the account status and variations,
+  then "Open the prototype" takes you to the product screen with those settings
+  applied. Share this link for feedback.
+- **`product.html`** - the **product screen**. Reads the chosen variations from URL
+  query params (see below), so any scenario is a shareable link on its own. A
+  "Prototype options" chip links back to the picker.
+- **`concept.html`** - an all-in-one **interactive concept** with live toggles and an
+  engineer-notes overlay on the page itself (an alternative to the picker flow).
 
-Both are single self-contained HTML files, no build step (fonts load from Google Fonts).
+All three are single self-contained HTML files, no build step (fonts load from Google Fonts).
 
 ## Run locally
 
@@ -22,20 +24,23 @@ Both are single self-contained HTML files, no build step (fonts load from Google
 python3 -m http.server 8000
 ```
 
-then visit http://localhost:8000 (concept) or http://localhost:8000/product.html.
+then visit http://localhost:8000.
 
-## Product configuration (`product.html`)
+## Product URL parameters (`product.html`)
 
-Account state is set with constants at the top of the `<script>`, standing in for
-backend account values and feature flags:
+| Param | Values | Default |
+| --- | --- | --- |
+| `status` | `enabled`, `payouts_pending`, `requirements_due` | `enabled` |
+| `scope` | `single`, `account` (account adds a Location column) | `single` |
+| `ach` | `1` (card + bank account/ACH), `0` (card only) | `1` |
+| `ein` | `same`, `different` (drives the add-location card) | `same` |
+| `eligible` | `0`, `3`, `5`, `12` (how many open invoices need a link) | all eligible |
+| `state` | `paid`, `processing`, `failed` (initial state on the newest row) | none |
 
-| Constant | Values |
-| --- | --- |
-| `ACCOUNT_STATUS` | `enabled`, `payouts_pending`, `requirements_due` |
-| `SCOPE` | `single`, `account` (account adds a Location column) |
-| `ACH_ENABLED` | card + bank account (ACH), or card only |
-| `SOUTH_BRANCH_EIN` | `same`, `different` (drives the add-location card) |
-| `NEW_ACCOUNT_CARD_LIMIT` | `null` until confirmed with Stripe |
+Example: `product.html?status=payouts_pending&scope=account&ach=0&eligible=3&state=paid`
+
+In production these come from the backend account, feature flags, and Stripe payment
+events; the params just stand in for them so reviewers can explore each case.
 
 ## Notes for engineering
 
