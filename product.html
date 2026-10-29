@@ -248,6 +248,12 @@
   .toast.out { animation: toastOut .3s forwards; }
   @keyframes toastOut { to { opacity: 0; transform: translateY(14px); } }
 
+  /* prototype affordance (not part of the product): back to the options screen */
+  .review-chip { position: fixed; left: max(12px, env(safe-area-inset-left,0px)); bottom: calc(12px + env(safe-area-inset-bottom,0px)); z-index: 70; display: inline-flex; align-items: center; gap: 7px; background: var(--brand-950); color: #fff; text-decoration: none; font-size: 12px; font-weight: 600; padding: 8px 12px; border-radius: 999px; box-shadow: var(--shadow-lg); opacity: .92; }
+  .review-chip:hover { opacity: 1; }
+  .review-chip:focus-visible { outline: none; box-shadow: var(--shadow-lg), 0 0 0 3px rgba(96,117,159,.6); }
+  .review-chip svg { width: 14px; height: 14px; }
+
   @media (max-width: 900px) { .nexts { grid-template-columns: 1fr; } }
   @media (max-width: 600px) {
     .shell { padding: 22px 16px 28px; }
@@ -300,6 +306,11 @@
   <section class="nexts" id="nextsSlot" aria-label="Next steps"></section>
 </main>
 
+<a class="review-chip" href="./" title="Back to the scenario options">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+  Prototype options
+</a>
+
 <div class="toast-wrap" id="toastWrap"></div>
 <div class="sr-only" id="live" aria-live="polite" role="status"></div>
 
@@ -318,10 +329,19 @@
    Every payment carries job_id and location_id metadata.
    paid / processing / failed row states come from Stripe payment events.
    ========================================================================= */
-var ACCOUNT_STATUS = "enabled";
-var SCOPE = "single";
-var ACH_ENABLED = true;
-var SOUTH_BRANCH_EIN = "same";
+// Variations come from the options screen as URL query params (or these defaults).
+// e.g. product.html?status=payouts_pending&scope=account&ach=0&eligible=3&state=paid
+var PARAMS = new URLSearchParams(location.search);
+function param(name, allowed, fallback) {
+  var v = PARAMS.get(name);
+  return (v !== null && allowed.indexOf(v) !== -1) ? v : fallback;
+}
+var ACCOUNT_STATUS   = param("status", ["enabled", "payouts_pending", "requirements_due"], "enabled");
+var SCOPE            = param("scope",  ["single", "account"], "single");
+var ACH_ENABLED      = PARAMS.get("ach") === null ? true : PARAMS.get("ach") === "1";
+var SOUTH_BRANCH_EIN = param("ein",    ["same", "different"], "same");
+var ELIGIBLE_COUNT   = PARAMS.get("eligible") === null ? null : parseInt(PARAMS.get("eligible"), 10);
+var INITIAL_STATE    = param("state",  ["paid", "processing", "failed"], null);
 
 var CURRENT_LOCATION = "Main office";
 var APPROVAL_DATE = new Date("2026-10-27T00:00:00");
@@ -366,13 +386,17 @@ function methodsLabel() { return ACH_ENABLED ? "card or bank account (ACH)" : "c
    the current scope. */
 function inScope(inv) { return SCOPE === "account" ? true : inv.loc === CURRENT_LOCATION; }
 function eligibleInvoices() {
-  return MASTER.filter(function (inv) {
+  var list = MASTER.filter(function (inv) {
     return inv.balance > 0
       && parse(inv.sent) < APPROVAL_DATE
       && inv.status !== "void" && inv.status !== "draft"
       && !inv.hasPaymentLink
       && inScope(inv);
   }).sort(function (a, b) { return parse(b.sent) - parse(a.sent); });
+  // The options screen can cap how many are eligible (0/3/5/12) to demo the
+  // empty state and the "view all" link.
+  if (ELIGIBLE_COUNT !== null) list = list.slice(0, ELIGIBLE_COUNT);
+  return list;
 }
 
 /* icons */
@@ -490,7 +514,7 @@ function renderStep() {
   var tableHead =
     '<thead><tr>'
     + '<th>Customer</th><th>Invoice</th><th>Sent</th><th>Due</th><th>Send to</th>'
-    + thLoc + '<th class="num">Balance</th><th class="act"><span class="sr-only">Action</span></th>'
+    + thLoc + '<th class="num">Balance</th><th class="act" aria-label="Action"></th>'
     + '</tr></thead>';
 
   var rows = shown.map(function (inv) {
@@ -733,6 +757,17 @@ function onModalKey(e) {
 }
 
 /* init */
+// Optional initial row state from the options screen (applied to the most recent
+// eligible invoice) so reviewers can see paid / processing / failed on load.
+if (INITIAL_STATE) {
+  var topInv = eligibleInvoices()[0];
+  if (topInv) {
+    var rt0 = runtime[topInv.id];
+    if (INITIAL_STATE === "paid") { rt0.rowState = "paid"; rt0.paidOn = fmtDate(TODAY); firstSentLocations[topInv.locId] = true; }
+    else if (INITIAL_STATE === "processing") { rt0.rowState = "processing"; rt0.sentOn = fmtDate(TODAY); firstSentLocations[topInv.locId] = true; }
+    else if (INITIAL_STATE === "failed") { rt0.rowState = "failed"; }
+  }
+}
 renderBanner();
 renderStep();
 renderNexts();
